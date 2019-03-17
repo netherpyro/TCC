@@ -8,10 +8,10 @@ import java.util.Set;
  */
 final class ChartData {
 
-    final List<GraphTimestamp> columnData;
+    final List<Long> columnData;
     final Set<GraphLineModel> rowsData;
 
-    public ChartData(List<GraphTimestamp> columnData, Set<GraphLineModel> rowsData) {
+    public ChartData(List<Long> columnData, Set<GraphLineModel> rowsData) {
         this.columnData = columnData;
         this.rowsData = rowsData;
     }

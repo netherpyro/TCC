@@ -7,26 +7,27 @@ import java.util.List;
 /**
  * @author mmikhailov on 16/03/2019.
  */
-class ViewedLineModel {
+final class ViewedLineModel {
 
     final String chartId;
-    final List<Long> values = new LinkedList<>();
+    final List<Float> values = new LinkedList<>();
 
-    long maxValue = Long.MIN_VALUE;
-    long minValue = Long.MAX_VALUE;
+    float maxValue = Float.MIN_VALUE;
+    float minValue = Float.MAX_VALUE;
     boolean enabled = true;
 
-    public ViewedLineModel(String chartId, List<Long> values) {
+    ViewedLineModel(String chartId, List<Float> values) {
         this.chartId = chartId;
 
         updateValues(values);
     }
 
-    void updateValues(List<Long> values) {
+    void updateValues(List<Float> values) {
         this.values.clear();
         this.values.addAll(values);
 
-        List<Long> sortedValues = new LinkedList<>(values);
+        List<Float> sortedValues = new LinkedList<>(values);
+        // todo find better method to find min and max
         Collections.sort(sortedValues);
 
         this.maxValue = sortedValues.get(sortedValues.size() - 1);
