@@ -1,14 +1,1 @@
-*.iml
-.gradle
-/local.properties
-.idea
-.DS_Store
 /build
-/captures
-.externalNativeBuild
-/gradlew.bat
-/keystore.properties
-/*.jks
-/app/google-services.json
-libs/
-schemas/
