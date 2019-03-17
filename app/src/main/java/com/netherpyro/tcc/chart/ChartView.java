@@ -1,29 +1,45 @@
 package com.netherpyro.tcc.chart;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Canvas;
+import android.graphics.Paint;
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.LinearLayout;
+
+import com.netherpyro.tcc.R;
 
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
 
+import androidx.annotation.ColorInt;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.Px;
 import androidx.collection.ArraySet;
+import androidx.core.content.ContextCompat;
 
 /**
  * @author mmikhailov on 16/03/2019.
  */
 public class ChartView extends LinearLayout {
 
+    private final static int ATTRS_CHART_NAME_TEXT_SIZE_SP_DEFAULT = 18;
+    private final static int ATTRS_CHART_NAME_TEXT_COLOR_DEFAULT = R.color.colorAccent;
+    private final static int SPACING_DP_DEFAULT = 16;
+
     private final GraphView graphView = new GraphView(getContext());
 
     private String chartName = "";
-    private int chartNameSize = 12;
-    private int normalSpacing = 16;
+    private Paint titlePaint = null;
+    @Px
+    private int chartNameSize = Util.spToPx(ATTRS_CHART_NAME_TEXT_SIZE_SP_DEFAULT);
+    @Px
+    private int normalSpacing = Util.dpToPx(SPACING_DP_DEFAULT);
+    @ColorInt
+    private int chartNameTextColor = ContextCompat.getColor(getContext(), ATTRS_CHART_NAME_TEXT_COLOR_DEFAULT);
 
     public ChartView(Context context) {
         super(context);
@@ -32,6 +48,8 @@ public class ChartView extends LinearLayout {
 
     public ChartView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
+
+        applyAttrs(attrs);
         init();
     }
 
@@ -48,18 +66,35 @@ public class ChartView extends LinearLayout {
     protected void onDraw(Canvas canvas) {
         // draw title
         if (!chartName.isEmpty()) {
-
+            canvas.drawText(chartName, 0, 0, titlePaint);
         }
     }
 
     private void init() {
         setOrientation(VERTICAL);
 
+        titlePaint = new Paint();
+        titlePaint.setColor(chartNameTextColor);
+        titlePaint.setTextSize(chartNameSize);
+
         LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) graphView.getLayoutParams();
         params.topMargin = chartNameSize + (normalSpacing * 2);
         graphView.setLayoutParams(params);
 
         addView(graphView);
+    }
+
+    private void applyAttrs(@Nullable AttributeSet attrs) {
+        if (attrs != null) {
+            TypedArray a = getContext().obtainStyledAttributes(attrs, R.styleable.ChartView);
+
+            if (a.hasValue(R.styleable.ChartView_chartName)) {
+                chartName = a.getString(R.styleable.ChartView_chartName);
+            }
+
+            chartNameSize = a.getDimensionPixelSize(R.styleable.ChartView_chartNameTextSize, ATTRS_CHART_NAME_TEXT_SIZE_SP_DEFAULT);
+            chartNameTextColor = a.getColor(R.styleable.ChartView_chartNameTextColor, ContextCompat.getColor(getContext(), ATTRS_CHART_NAME_TEXT_COLOR_DEFAULT));
+        }
     }
 
     private class GraphView extends View {

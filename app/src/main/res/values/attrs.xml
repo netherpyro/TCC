@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="ChartView">
+        <attr name="chartName" format="string" />
+        <attr name="chartNameTextSize" format="dimension" />
+        <attr name="chartNameTextColor" format="color" />
+    </declare-styleable>
+</resources>
