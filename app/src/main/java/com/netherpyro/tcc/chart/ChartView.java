@@ -3,7 +3,6 @@ package com.netherpyro.tcc.chart;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 import android.util.AttributeSet;
 import android.view.View;
@@ -80,7 +79,7 @@ public class ChartView extends LinearLayout {
     private void init() {
         setOrientation(VERTICAL);
 
-        titlePaint = new Paint();
+        titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         titlePaint.setColor(chartNameTextColor);
         titlePaint.setTextSize(chartNameSize);
 
@@ -125,9 +124,9 @@ public class ChartView extends LinearLayout {
 
         private int rulerFloors = DEFAULT_QTY_RULER_FLOORS;
         @ColorInt
-        private int rulerGridColor = Color.BLACK;
+        private int rulerGridColor = 0x80909090;
         @ColorInt
-        private int rulerValueTextColor = Color.BLACK;
+        private int rulerValueTextColor = 0xFF909090;
         @Px
         private int rulerValueTextSize = Util.spToPx(DEFAULT_SIZE_SP_TEXT_VALUE);
 
@@ -151,7 +150,7 @@ public class ChartView extends LinearLayout {
         GraphView(Context context) {
             super(context);
 
-            rulerValuePaint = new Paint();
+            rulerValuePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             rulerValuePaint.setColor(rulerValueTextColor);
             rulerValuePaint.setTextSize(rulerValueTextSize);
             abscessValueTextMaxWidth = rulerValuePaint.measureText("WWW 99");
@@ -216,7 +215,7 @@ public class ChartView extends LinearLayout {
             int newHeight;
 
             newWidth = getMeasuredWidth();
-            newHeight = (int) (newWidth * 0.9f);
+            newHeight = newWidth;
 
             setMeasuredDimension(newWidth, newHeight);
         }
