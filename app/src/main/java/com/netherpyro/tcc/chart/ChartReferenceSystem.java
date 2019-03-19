@@ -9,11 +9,13 @@ final class ChartReferenceSystem {
     private float width;
     private float height;
     private int floors;
+    private float textSizeWithSpacing;
 
-    ChartReferenceSystem(float chartWidth, float chartHeight, int rulerFloors) {
+    ChartReferenceSystem(float chartWidth, float chartHeight, int rulerFloors, float textSizeWithSpacing) {
         this.width = chartWidth;
         this.height = chartHeight;
         this.floors = rulerFloors;
+        this.textSizeWithSpacing = textSizeWithSpacing;
     }
 
     void setAbscissaWindow(float fromValue, float toValue) {
@@ -27,8 +29,9 @@ final class ChartReferenceSystem {
     }
 
     float yOfOrdinateValue(float value) {
-        float percent = (value - window.bottom) / (window.top - window.bottom);
-        return height - (height * percent);
+        final float percent = (value - window.bottom) / (window.top - window.bottom);
+        final float refinedHeight = height - textSizeWithSpacing;
+        return (height - textSizeWithSpacing * (1 - percent)) - (refinedHeight * percent);
     }
 
     final class ChartWindow {

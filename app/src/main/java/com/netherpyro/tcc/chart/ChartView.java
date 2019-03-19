@@ -3,9 +3,11 @@ package com.netherpyro.tcc.chart;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.util.AttributeSet;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.LinearLayout;
 
 import com.netherpyro.tcc.R;
@@ -33,8 +35,6 @@ public class ChartView extends LinearLayout {
     private final int DEFAULT_DP_NORMAL_SPACING = 16;
     private final int DEFAULT_DP_SMALL_SPACING = 8;
 
-    private final GraphView graphView = new GraphView(getContext());
-
     private String chartName = getResources().getString(DEFAULT_STRING_RES_CHART_NAME);
     private Paint titlePaint = null;
     @Px
@@ -45,6 +45,8 @@ public class ChartView extends LinearLayout {
     private int smallSpacing = Util.dpToPx(DEFAULT_DP_SMALL_SPACING);
     @ColorInt
     private int chartNameTextColor = ContextCompat.getColor(getContext(), ATTRS_DEFAULT_COLOR_RES_TEXT_CHART_NAME);
+
+    private final GraphView graphView = new GraphView(getContext());
 
     public ChartView(Context context) {
         super(context);
@@ -58,8 +60,8 @@ public class ChartView extends LinearLayout {
         init();
     }
 
-    public void setData(ChartData data) {
-        graphView.setValues(data.columnData, data.rowsData);
+    public void setData(List<ChartData> data) {
+        graphView.setValues(data.get(0).columnData, data.get(0).rowsData);
     }
 
     public void setChartName(String name) {
@@ -82,14 +84,13 @@ public class ChartView extends LinearLayout {
         titlePaint.setColor(chartNameTextColor);
         titlePaint.setTextSize(chartNameSize);
 
-        MarginLayoutParams thisParams = (MarginLayoutParams) this.getLayoutParams();
-        thisParams.topMargin = normalSpacing;
-        thisParams.leftMargin = normalSpacing;
-        thisParams.rightMargin = normalSpacing;
-        this.setLayoutParams(thisParams);
-
-        LinearLayout.LayoutParams graphParams = (LinearLayout.LayoutParams) graphView.getLayoutParams();
+        LinearLayout.LayoutParams graphParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+        );
         graphParams.topMargin = chartNameSize + normalSpacing;
+        graphParams.leftMargin = normalSpacing;
+        graphParams.rightMargin = normalSpacing;
         graphView.setLayoutParams(graphParams);
 
         addView(graphView);
@@ -124,9 +125,9 @@ public class ChartView extends LinearLayout {
 
         private int rulerFloors = DEFAULT_QTY_RULER_FLOORS;
         @ColorInt
-        private int rulerGridColor = 0x80F1F1F1;
+        private int rulerGridColor = Color.BLACK;
         @ColorInt
-        private int rulerValueTextColor = 0xF1F1F1;
+        private int rulerValueTextColor = Color.BLACK;
         @Px
         private int rulerValueTextSize = Util.spToPx(DEFAULT_SIZE_SP_TEXT_VALUE);
 
@@ -136,11 +137,11 @@ public class ChartView extends LinearLayout {
         private float rulerMinYValue = -1f;
         private float abscessValueTextMaxWidth;
         private float abscessValueAppropriateSpacing;
-        private List<Long> viewedAbscissaValues = null;
-        private Set<ViewedLineModel> viewedLinesData = null;
-        private List<String> rulerAbscissaValues = new ArrayList<>();
-        private List<String> rulerOrdinateValues = new ArrayList<>();
-        private float[] rulerAbscissaValuesXCoordinates = new float[1];
+        private List<Long> viewedAbscissaValues = new LinkedList<>();
+        private Set<ViewedLineModel> viewedLinesData = new ArraySet<>();
+        private List<String> rulerAbscissaLabels = new ArrayList<>();
+        private List<String> rulerOrdinateLabels = new ArrayList<>();
+        private float[] rulerAbscissaLabelXCoordinates = new float[1];
         private float[] rulerOrdinateGridLinesPoints = new float[1];
         private Paint rulerGridPaint;
         private Paint rulerValuePaint;
@@ -169,8 +170,8 @@ public class ChartView extends LinearLayout {
             this.ordinateValuesSet.addAll(yValuesSet);
 
             invalidateXValues(-1, -1);
-            invalidateYValues();
             initChartReferenceSystem();
+            invalidateYValues();
             initialized = true;
 
             invalidate();
@@ -209,6 +210,18 @@ public class ChartView extends LinearLayout {
         }
 
         @Override
+        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+            int newWidth;
+            int newHeight;
+
+            newWidth = getMeasuredWidth();
+            newHeight = (int) (newWidth * 0.9f);
+
+            setMeasuredDimension(newWidth, newHeight);
+        }
+
+        @Override
         protected void onDraw(Canvas canvas) {
             if (!initialized) {
                 return;
@@ -220,10 +233,10 @@ public class ChartView extends LinearLayout {
             // draw ruler Y values
             rulerValuePaint.setTextAlign(Paint.Align.LEFT);
 
-            for (int i = 0; i <= rulerOrdinateValues.size(); i++) {
+            for (int i = 0; i < rulerOrdinateLabels.size(); i++) {
                 int arrayStartPointer = i * gridLinePointsInArrayOffset;
                 canvas.drawText(
-                        rulerOrdinateValues.get(i),
+                        rulerOrdinateLabels.get(i),
                         rulerOrdinateGridLinesPoints[arrayStartPointer],
                         rulerOrdinateGridLinesPoints[arrayStartPointer + 1] - smallSpacing,
                         rulerValuePaint
@@ -231,26 +244,22 @@ public class ChartView extends LinearLayout {
             }
 
             // draw ruler X values
-            float abscissaValueY = rulerOrdinateGridLinesPoints[rulerOrdinateGridLinesPoints.length - 1] +
-                    smallSpacing +
-                    rulerValueTextSize;
+            final float abscissaValueY = rulerOrdinateGridLinesPoints[1] + // y of most bottom line
+                    smallSpacing + rulerValueTextSize;
 
-            int i = 0;
-            while (i < rulerAbscissaValues.size()) {
-                if (i == rulerAbscissaValues.size() - 1) {
+            for (int i = 0; i < rulerAbscissaLabels.size(); i++) {
+                if (i == rulerAbscissaLabels.size() - 1) {
                     rulerValuePaint.setTextAlign(Paint.Align.RIGHT);
                 } else {
                     rulerValuePaint.setTextAlign(Paint.Align.LEFT);
                 }
 
                 canvas.drawText(
-                        rulerAbscissaValues.get(i),
-                        rulerAbscissaValuesXCoordinates[i],
+                        rulerAbscissaLabels.get(i),
+                        rulerAbscissaLabelXCoordinates[i],
                         abscissaValueY,
                         rulerValuePaint
                 );
-
-                i++;
             }
 
             // draw chart lines
@@ -258,9 +267,8 @@ public class ChartView extends LinearLayout {
         }
 
         private void initChartReferenceSystem() {
-            crs = new ChartReferenceSystem(getWidth(), getHeight(), rulerFloors);
+            crs = new ChartReferenceSystem(getWidth(), getHeight(), rulerFloors, rulerValueTextSize + normalSpacing);
             crs.setAbscissaWindow(abscissaValues.get(0), abscissaValues.get(abscissaValues.size() - 1));
-            crs.setOrdinateWindow(rulerMinYValue, rulerMaxYValue);
         }
 
         private void invalidateXValues(int fromIndex, int toIndex) {
@@ -285,32 +293,41 @@ public class ChartView extends LinearLayout {
                 viewedAbscissaValues = abscissaValues;
             }
 
-            // get abscissa value labels to be displayed
-            rulerAbscissaValues = Util.convertTimestampsToLabels(viewedAbscissaValues);
-
-            // get abscissa value X positions
+            // get abscissa value X positions and quantity
             final float viewWidth = (float) getWidth();
+            int pointArraySize = (int) (viewWidth / (abscessValueAppropriateSpacing + abscessValueTextMaxWidth));
+            final float step = (viewWidth - abscessValueAppropriateSpacing) / pointArraySize;
 
-            int pointArraySize = viewedAbscissaValues.size();
-            int spacing;
-            int i = 0;
+            pointArraySize++; // add for the last value
 
-            do {
-                int divider = i == 0 ? 1 : i * 2;
-                spacing = (int) (viewWidth / (pointArraySize /= divider) - abscessValueTextMaxWidth);
-                i++;
-            } while (spacing < abscessValueAppropriateSpacing);
-
-            float step = viewWidth / (pointArraySize - 1);
-            rulerAbscissaValuesXCoordinates = new float[pointArraySize];
-
+            rulerAbscissaLabelXCoordinates = new float[pointArraySize];
             for (int k = 0; k < pointArraySize; k++) {
+
                 if (k == pointArraySize - 1) {
-                    rulerAbscissaValuesXCoordinates[k] = viewWidth; // most end x value
+                    rulerAbscissaLabelXCoordinates[k] = viewWidth; // most end x value
                 } else {
-                    rulerAbscissaValuesXCoordinates[k] = k * step;
+                    rulerAbscissaLabelXCoordinates[k] = k * step;
                 }
             }
+
+            // get abscissa value labels to be displayed
+            final int[] indexes = new int[pointArraySize];
+            final int indexStep = viewedAbscissaValues.size() / (pointArraySize - 1); // without last value
+
+            int currentIndex = 0;
+            for (int j = 0; j < pointArraySize - 1; j++) { // without last value
+                indexes[j] = currentIndex;
+                currentIndex += indexStep;
+            }
+
+            indexes[indexes.length - 1] = viewedAbscissaValues.size() - 1; // manually put last index as last item in array
+
+            List<Long> rulerAbscissaValues = new ArrayList<>(pointArraySize);
+            for (int index : indexes) {
+                rulerAbscissaValues.add(viewedAbscissaValues.get(index));
+            }
+
+            rulerAbscissaLabels = Util.convertTimestampsToLabels(rulerAbscissaValues);
         }
 
         private void invalidateYValues() {
@@ -334,7 +351,9 @@ public class ChartView extends LinearLayout {
             rulerMaxYValue = maxValue;
             rulerMinYValue = minValue;
 
-            rulerOrdinateValues.clear();
+            crs.setOrdinateWindow(rulerMinYValue, rulerMaxYValue);
+
+            rulerOrdinateLabels.clear();
             float step = (maxValue - minValue) / rulerFloors;
 
             int pointsArraySize = (rulerFloors + 1) * gridLinePointsInArrayOffset; // size: (rulerFloors + base floor) * point qty for every floor
@@ -343,7 +362,7 @@ public class ChartView extends LinearLayout {
             int i = 0;
             while (i <= rulerFloors) { // include base floor
                 float valueToAdd = (minValue + step * i);
-                rulerOrdinateValues.add(String.valueOf(valueToAdd));
+                rulerOrdinateLabels.add(String.valueOf(valueToAdd));
 
                 int arrayStartPointer = i * gridLinePointsInArrayOffset;
                 rulerOrdinateGridLinesPoints[arrayStartPointer] = 0f;

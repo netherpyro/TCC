@@ -6,7 +6,7 @@ import java.util.Set;
 /**
  * @author mmikhailov on 16/03/2019.
  */
-final class ChartData {
+public final class ChartData {
 
     final List<Long> columnData;
     final Set<GraphLineModel> rowsData;
