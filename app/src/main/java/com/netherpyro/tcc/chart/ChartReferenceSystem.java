@@ -8,30 +8,54 @@ final class ChartReferenceSystem {
     private ChartWindow window = new ChartWindow();
     private float width;
     private float height;
-    private int floors;
     private float textSizeWithSpacing;
+    private float currentCostOfXValue;
+    private float currentCostOfYValue;
+    private float availableHeight;
 
-    ChartReferenceSystem(float chartWidth, float chartHeight, int rulerFloors, float textSizeWithSpacing) {
+    ChartReferenceSystem(float chartWidth, float chartHeight, float textSizeWithSpacing) {
         this.width = chartWidth;
         this.height = chartHeight;
-        this.floors = rulerFloors;
         this.textSizeWithSpacing = textSizeWithSpacing;
+        this.availableHeight = height - textSizeWithSpacing * 2;
     }
 
     void setAbscissaWindow(float fromValue, float toValue) {
         window.left = fromValue;
         window.right = toValue;
+        calculateCostInPxOfXValue();
     }
 
     void setOrdinateWindow(float fromValue, float toValue) {
         window.bottom = fromValue;
         window.top = toValue;
+        calculateCostInPxOfYValue();
     }
 
     float yOfOrdinateValue(float value) {
-        final float percent = (value - window.bottom) / (window.top - window.bottom);
-        final float refinedHeight = height - textSizeWithSpacing;
-        return (height - textSizeWithSpacing * (1 - percent)) - (refinedHeight * percent);
+        final float percent = (value - window.bottom) / window.height();
+        return height - textSizeWithSpacing + percent * (2 * textSizeWithSpacing - height);
+    }
+
+    float xOfAbscissaValue(long value) {
+        final float percent = (value - window.left) / window.width();
+        return width * percent;
+    }
+
+    private void calculateCostInPxOfXValue() {
+        currentCostOfXValue = width / window.width();
+    }
+
+    private void calculateCostInPxOfYValue() {
+        currentCostOfYValue = availableHeight / window.height();
+    }
+
+    float rXTranslateInPx(float value) {
+        return currentCostOfXValue * value;
+    }
+
+    float rYTranslateInPx(float value) {
+        return currentCostOfYValue * value;
     }
 
     final class ChartWindow {
@@ -48,6 +72,14 @@ final class ChartReferenceSystem {
             this.top = top;
             this.right = right;
             this.bottom = bottom;
+        }
+
+        float width() {
+            return right - left;
+        }
+
+        float height() {
+            return top - bottom;
         }
     }
 }

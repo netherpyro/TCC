@@ -4,6 +4,8 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import androidx.annotation.ColorInt;
+
 /**
  * @author mmikhailov on 16/03/2019.
  */
@@ -16,8 +18,12 @@ final class ViewedLineModel {
     float minValue = Float.MAX_VALUE;
     boolean enabled = true;
 
-    ViewedLineModel(String chartId, List<Float> values) {
+    @ColorInt
+    final int color;
+
+    ViewedLineModel(String chartId, List<Float> values, @ColorInt int color) {
         this.chartId = chartId;
+        this.color = color;
 
         updateValues(values);
     }

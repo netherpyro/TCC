@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.ViewGroup;
@@ -144,6 +145,8 @@ public class ChartView extends LinearLayout {
         private float[] rulerOrdinateGridLinesPoints = new float[1];
         private Paint rulerGridPaint;
         private Paint rulerValuePaint;
+        private Paint linePaint;
+        private Path linePath;
 
         private boolean initialized = false;
 
@@ -158,6 +161,11 @@ public class ChartView extends LinearLayout {
 
             rulerGridPaint = new Paint();
             rulerGridPaint.setColor(rulerGridColor);
+
+            linePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            linePaint.setStrokeWidth(3);
+            linePaint.setStyle(Paint.Style.STROKE);
+            linePath = new Path();
         }
 
         void setValues(@NonNull List<Long> xValues, @NonNull Set<GraphLineModel> yValuesSet) {
@@ -262,11 +270,37 @@ public class ChartView extends LinearLayout {
             }
 
             // draw chart lines
-            // todo
+            for (ViewedLineModel line : viewedLinesData) {
+
+                if (!line.enabled) {
+                    continue;
+                }
+
+                linePath.reset();
+                linePaint.setColor(line.color);
+
+                final float initialX = crs.xOfAbscissaValue(viewedAbscissaValues.get(0));
+                final float initialY = crs.yOfOrdinateValue(line.values.get(0));
+                final float relativeX = crs.rXTranslateInPx(viewedAbscissaValues.get(1) - viewedAbscissaValues.get(0));
+
+                linePath.moveTo(initialX, initialY);
+
+                float currentX = initialX;
+                float currentY;
+                for (int i = 1; i < line.values.size(); i++) {
+                    //relativeY = crs.rYTranslateInPx(line.values.get(i) - line.values.get(i - 1));
+                    //linePath.rLineTo(relativeX, relativeY);
+                    currentX += relativeX;
+                    currentY = crs.yOfOrdinateValue(line.values.get(i));
+                    linePath.lineTo(currentX, currentY);
+                }
+
+                canvas.drawPath(linePath, linePaint);
+            }
         }
 
         private void initChartReferenceSystem() {
-            crs = new ChartReferenceSystem(getWidth(), getHeight(), rulerFloors, rulerValueTextSize + normalSpacing);
+            crs = new ChartReferenceSystem(getWidth(), getHeight(), rulerValueTextSize + normalSpacing);
             crs.setAbscissaWindow(abscissaValues.get(0), abscissaValues.get(abscissaValues.size() - 1));
         }
 
@@ -284,9 +318,9 @@ public class ChartView extends LinearLayout {
                 }
             } else {
 
+                viewedLinesData.clear();
                 for (GraphLineModel lineModel : ordinateValuesSet) {
-                    viewedLinesData.clear();
-                    viewedLinesData.add(new ViewedLineModel(lineModel.id, lineModel.values));
+                    viewedLinesData.add(new ViewedLineModel(lineModel.id, lineModel.values, lineModel.color));
                 }
 
                 viewedAbscissaValues = abscissaValues;
