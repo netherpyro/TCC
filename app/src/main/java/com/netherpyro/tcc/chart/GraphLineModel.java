@@ -1,6 +1,5 @@
 package com.netherpyro.tcc.chart;
 
-import java.util.LinkedList;
 import java.util.List;
 
 import androidx.annotation.ColorInt;
@@ -12,7 +11,8 @@ public final class GraphLineModel {
 
     final String id;
     final String name;
-    final List<Float> values = new LinkedList<>();
+
+    Float[] values;
 
     @ColorInt
     final int color;
@@ -20,7 +20,8 @@ public final class GraphLineModel {
     public GraphLineModel(String id, String name, List<Float> values, @ColorInt int color) {
         this.id = id;
         this.name = name;
-        this.values.addAll(values);
+        this.values = new Float[values.size()];
+        values.toArray(this.values);
         this.color = color;
     }
 }
