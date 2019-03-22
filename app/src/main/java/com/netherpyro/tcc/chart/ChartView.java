@@ -29,7 +29,7 @@ import androidx.core.content.ContextCompat;
  */
 public class ChartView extends LinearLayout {
 
-    private final int ATTRS_DEFAULT_SIZE_SP_TEXT_CHART_NAME = 18;
+    private final int ATTRS_DEFAULT_SIZE_SP_TEXT_CHART_NAME = 32;
     private final int ATTRS_DEFAULT_COLOR_RES_TEXT_CHART_NAME = R.color.colorAccent;
     private final int DEFAULT_STRING_RES_CHART_NAME = R.string.default_chart_name;
     private final int DEFAULT_DP_NORMAL_SPACING = 16;
@@ -90,12 +90,13 @@ public class ChartView extends LinearLayout {
     protected void onDraw(Canvas canvas) {
         // draw title
         if (!chartName.isEmpty()) {
-            canvas.drawText(chartName, 0, 0, titlePaint);
+            canvas.drawText(chartName, normalSpacing, chartNameSize + normalSpacing + smallSpacing, titlePaint);
         }
     }
 
     private void init() {
         setOrientation(VERTICAL);
+        setWillNotDraw(false);
 
         titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         titlePaint.setColor(chartNameTextColor);
@@ -105,7 +106,7 @@ public class ChartView extends LinearLayout {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
         );
-        graphParams.topMargin = chartNameSize + normalSpacing;
+        graphParams.topMargin = chartNameSize + normalSpacing * 2 + smallSpacing;
         graphParams.leftMargin = normalSpacing;
         graphParams.rightMargin = normalSpacing;
         graphView.setLayoutParams(graphParams);
@@ -338,7 +339,7 @@ public class ChartView extends LinearLayout {
 
             // get abscissa labels text to be displayed
             final int[] indexes = new int[labelsCount];
-            final int indexStep = viewedPointsCount / (labelsCount - 1); // without the last label
+            final int indexStep = viewedPointsCount / (labelsCount - 1); // without the last label //todo fix divide by zero
 
             int currentIndex = horizontalFromIndex;
             for (int j = 0; j < labelsCount - 1; j++) { // without the last label
