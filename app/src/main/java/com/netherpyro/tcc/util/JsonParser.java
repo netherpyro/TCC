@@ -15,9 +15,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-
-import androidx.collection.ArraySet;
 
 /**
  * @author mmikhailov on 17/03/2019.
@@ -80,7 +77,7 @@ public class JsonParser {
                 }
             }
 
-            final Set<GraphLineModel> ordinates = new ArraySet<>();
+            final List<GraphLineModel> ordinates = new ArrayList<>();
 
             for (Map.Entry<String, String> entry : columnsTypes.entrySet()) {
                 final String column = entry.getKey();

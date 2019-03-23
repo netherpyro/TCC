@@ -1,7 +1,6 @@
 package com.netherpyro.tcc.chart;
 
 import java.util.List;
-import java.util.Set;
 
 /**
  * @author mmikhailov on 16/03/2019.
@@ -9,9 +8,9 @@ import java.util.Set;
 public final class ChartData {
 
     final List<Long> columnData;
-    final Set<GraphLineModel> rowsData;
+    final List<GraphLineModel> rowsData;
 
-    public ChartData(List<Long> columnData, Set<GraphLineModel> rowsData) {
+    public ChartData(List<Long> columnData, List<GraphLineModel> rowsData) {
         this.columnData = columnData;
         this.rowsData = rowsData;
     }

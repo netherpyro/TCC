@@ -1,9 +1,11 @@
 package com.netherpyro.tcc.chart;
 
+import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.AttributeSet;
@@ -11,7 +13,7 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
+import android.view.animation.LinearInterpolator;
 import android.widget.LinearLayout;
 
 import com.netherpyro.tcc.R;
@@ -30,7 +32,7 @@ import androidx.core.content.ContextCompat;
 /**
  * @author mmikhailov on 16/03/2019.
  */
-public class ChartView extends FrameLayout {
+public class ChartView extends LinearLayout {
 
     private final int ATTRS_DEFAULT_SIZE_SP_TEXT_CHART_NAME = 32;
     private final int ATTRS_DEFAULT_COLOR_RES_TEXT_CHART_NAME = R.color.colorAccent;
@@ -72,8 +74,29 @@ public class ChartView extends FrameLayout {
         init();
     }
 
-    public void setData(List<ChartData> data) {
-        graphView.setValues(data.get(0).columnData, data.get(0).rowsData);
+    public void setData(ChartData data) {
+        graphView.setValues(data.columnData, data.rowsData);
+
+        int i = 0;
+        for (final GraphLineModel model : data.rowsData) {
+            boolean drawDivider = i != data.rowsData.size() - 1;
+            Checkbox cb = new Checkbox(getContext(), model.color, model.name, drawDivider, new CheckListener() {
+                @Override
+                public void onChecked(boolean checked) {
+                    graphView.toggleChartLine(model.id);
+                }
+            });
+
+            LinearLayout.LayoutParams cbParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            cbParams.topMargin = i == 0 ? smallSpacing : 0;
+            cb.setLayoutParams(cbParams);
+
+            addView(cb);
+            i++;
+        }
     }
 
     public void setChartName(String name) {
@@ -90,6 +113,7 @@ public class ChartView extends FrameLayout {
     }
 
     private void init() {
+        setOrientation(LinearLayout.VERTICAL);
         setWillNotDraw(false);
 
         titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -212,7 +236,7 @@ public class ChartView extends FrameLayout {
             return horizontalToIndex - horizontalFromIndex + 1;
         }
 
-        void setValues(@NonNull List<Long> xValues, @NonNull Set<GraphLineModel> yValuesSet) {
+        void setValues(@NonNull List<Long> xValues, @NonNull List<GraphLineModel> yValuesSet) {
             if (xValues.isEmpty()) {
                 return;
             }
@@ -676,6 +700,153 @@ public class ChartView extends FrameLayout {
             historyControllerVerticalLinesPointsCoordinates[5] = historyTop + DEFAULT_HISTORY_CONTROLLER_HORIZONTAL_LINE_WIDTH;
             historyControllerVerticalLinesPointsCoordinates[6] = historyLinePointsXCoordinates[horizontalToIndex] - DEFAULT_HISTORY_CONTROLLER_VERTICAL_LINE_WIDTH / 2f;
             historyControllerVerticalLinesPointsCoordinates[7] = historyBottom - DEFAULT_HISTORY_CONTROLLER_HORIZONTAL_LINE_WIDTH;
+        }
+    }
+
+    private class Checkbox extends View {
+
+        private final int DEFAULT_SIZE_SP_TEXT = 24;
+        private final int DEFAULT_COLOR = Color.BLACK;
+        private final int ANIMATION_DURATION = 400;
+        private final int DEFAULT_CB_SIZE_DP = 24;
+        private final int DEFAULT_CB_RADIUS_DP = 4;
+
+        @ColorInt
+        private int cbColor = DEFAULT_COLOR;
+        @ColorInt
+        private int textColor = DEFAULT_COLOR;
+        @ColorInt
+        private int dividerColor = 0xFFE7E8E9;
+        @Px
+        private int textSize = Util.spToPx(DEFAULT_SIZE_SP_TEXT);
+        @Px
+        private int cbSize = Util.dpToPx(DEFAULT_CB_SIZE_DP);
+        @Px
+        private int cbRadius = Util.dpToPx(DEFAULT_CB_RADIUS_DP);
+
+        private String text = "New checkbox";
+        private boolean drawDivider = true;
+        private boolean checked = true;
+
+        private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final RectF cbRect = new RectF();
+
+        private CheckListener checkListener;
+        private ValueAnimator animator = null;
+
+        public Checkbox(
+                Context context,
+                int cbColor,
+                String text,
+                boolean drawDivider,
+                @Nullable CheckListener checkListener
+        ) {
+            super(context);
+
+            this.cbColor = cbColor;
+            this.text = text;
+            this.drawDivider = drawDivider;
+            this.checkListener = checkListener;
+        }
+
+        public Checkbox(Context context) {
+            super(context);
+        }
+
+        void toggleChecked() {
+            checked = !checked;
+
+            if (checkListener != null) {
+                checkListener.onChecked(checked);
+            }
+
+            if (animator != null) {
+                animator.cancel();
+            }
+
+            if (checked) {
+                animator = ValueAnimator.ofFloat(0f, 1f);
+                animator.setInterpolator(new LinearInterpolator());
+                animator.setDuration(ANIMATION_DURATION);
+                animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                    @Override
+                    public void onAnimationUpdate(ValueAnimator animation) {
+                        int value = (int) animation.getAnimatedValue();
+                    }
+                });
+            } else {
+                animator = ValueAnimator.ofFloat(1f, 0f);
+                animator.setInterpolator(new LinearInterpolator());
+                animator.setDuration(ANIMATION_DURATION);
+                animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                    @Override
+                    public void onAnimationUpdate(ValueAnimator animation) {
+                        int value = (int) animation.getAnimatedValue();
+                    }
+                });
+            }
+
+        }
+
+        private boolean wasDown = false;
+        @SuppressLint("ClickableViewAccessibility")
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                wasDown = true;
+                return true;
+            } else if (event.getAction() == MotionEvent.ACTION_UP && wasDown) {
+                wasDown = false;
+                toggleChecked();
+                return true;
+            }
+
+            return super.onTouchEvent(event);
+        }
+
+        @Override
+        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+            super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+            int newWidth;
+            int newHeight;
+
+            newWidth = getMeasuredWidth();
+            newHeight = textSize + 3 * normalSpacing;
+
+            cbRect.left = normalSpacing;
+            cbRect.top = 1.5f * normalSpacing;
+            cbRect.right = cbRect.left + cbSize;
+            cbRect.bottom = cbRect.top + cbSize;
+
+            setMeasuredDimension(newWidth, newHeight);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            paint.setColor(cbColor);
+            paint.setStyle(Paint.Style.FILL);
+            canvas.drawRoundRect(cbRect, cbRadius, cbRadius, paint);
+
+            paint.setColor(textColor);
+            paint.setTextSize(textSize);
+            canvas.drawText(text,
+                    cbRect.right + normalSpacing + smallSpacing,
+                    cbRect.bottom - ((cbSize - textSize)),
+                    paint
+            );
+
+            if (drawDivider) {
+                paint.setColor(dividerColor);
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(2);
+                canvas.drawLine(
+                        cbRect.right + normalSpacing,
+                        getHeight(),
+                        getWidth(),
+                        getHeight(),
+                        paint
+                );
+            }
         }
     }
 }

@@ -47,9 +47,10 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(List<ChartData> chartData) {
             super.onPostExecute(chartData);
+
             ChartView chartView = findViewById(R.id.chartView);
             chartView.setChartName("Followers");
-            chartView.setData(chartData);
+            chartView.setData(chartData.get(0));
         }
     }
 }
