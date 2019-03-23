@@ -11,7 +11,8 @@ final class ViewedLineModel {
     @ColorInt
     final int color;
 
-    float[] linePointsParts;
+    float[] mainLinePointsParts;
+    float[] historyLinePointsParts;
     boolean enabled = true;
 
     ViewedLineModel(String chartId, @ColorInt int color) {

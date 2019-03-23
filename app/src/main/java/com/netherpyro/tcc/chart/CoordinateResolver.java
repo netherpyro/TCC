@@ -3,21 +3,23 @@ package com.netherpyro.tcc.chart;
 /**
  * @author mmikhailov on 17/03/2019.
  */
-final class ChartReferenceSystem {
+final class CoordinateResolver {
 
     private ChartWindow window = new ChartWindow();
     private float width;
     private float height;
-    private float textSizeWithSpacing;
+    private float drawportTop;
+    private float topBottomDrawPortPadding;
     private float currentCostOfXValue;
     private float currentCostOfYValue;
     private float availableHeight;
 
-    ChartReferenceSystem(float chartWidth, float chartHeight, float textSizeWithSpacing) {
-        this.width = chartWidth;
+    CoordinateResolver(float fullWidth, float chartHeight, float drawportTop, float topBottomDrawPortPadding) {
+        this.width = fullWidth;
         this.height = chartHeight;
-        this.textSizeWithSpacing = textSizeWithSpacing;
-        this.availableHeight = height - textSizeWithSpacing * 2;
+        this.drawportTop = drawportTop;
+        this.topBottomDrawPortPadding = topBottomDrawPortPadding;
+        this.availableHeight = height - topBottomDrawPortPadding * 2;
     }
 
     void setAbscissaWindow(float fromValue, float toValue) {
@@ -34,7 +36,7 @@ final class ChartReferenceSystem {
 
     float yOfOrdinateValue(float value) {
         final float percent = (value - window.bottom) / window.height();
-        return height - textSizeWithSpacing + percent * (2 * textSizeWithSpacing - height);
+        return drawportTop + height - topBottomDrawPortPadding + percent * (2 * topBottomDrawPortPadding - height);
     }
 
     float xOfAbscissaValue(long value) {
@@ -56,6 +58,14 @@ final class ChartReferenceSystem {
 
     float rYTranslateInPx(float value) {
         return currentCostOfYValue * value;
+    }
+
+    float maxOrdinateValue() {
+        return window.top;
+    }
+
+    float minOrdinateValue() {
+        return window.bottom;
     }
 
     final class ChartWindow {
