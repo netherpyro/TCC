@@ -1,14 +1,17 @@
 package com.netherpyro.tcc.chart;
 
-import android.animation.ValueAnimator;
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.AttributeSet;
+import android.util.Log;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
 import com.netherpyro.tcc.R;
@@ -27,7 +30,7 @@ import androidx.core.content.ContextCompat;
 /**
  * @author mmikhailov on 16/03/2019.
  */
-public class ChartView extends LinearLayout {
+public class ChartView extends FrameLayout {
 
     private final int ATTRS_DEFAULT_SIZE_SP_TEXT_CHART_NAME = 32;
     private final int ATTRS_DEFAULT_COLOR_RES_TEXT_CHART_NAME = R.color.colorAccent;
@@ -51,7 +54,11 @@ public class ChartView extends LinearLayout {
 
     private final GraphView graphView = new GraphView(getContext());
 
-    private ValueAnimator animator = null;
+    private float lastTouchX = 0;
+
+    private boolean touchingLeft;
+    private boolean touchingRight;
+    private boolean touchingCenter;
 
     public ChartView(Context context) {
         super(context);
@@ -67,23 +74,6 @@ public class ChartView extends LinearLayout {
 
     public void setData(List<ChartData> data) {
         graphView.setValues(data.get(0).columnData, data.get(0).rowsData);
-
-        graphView.setWindow(0.25f, 0.75f);
-
-        /*final int size = data.get(0).columnData.size();
-        animator = ValueAnimator.ofInt(1, size);
-        animator.setInterpolator(new AccelerateDecelerateInterpolator());
-        animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                int index = (int) animation.getAnimatedValue();
-                graphView.setWindow(0f, index / (size * 1f));
-            }
-        });
-        animator.setRepeatCount(ValueAnimator.INFINITE);
-        animator.setDuration(1600L);
-        animator.setRepeatMode(ValueAnimator.REVERSE);
-        animator.start();*/
     }
 
     public void setChartName(String name) {
@@ -100,7 +90,6 @@ public class ChartView extends LinearLayout {
     }
 
     private void init() {
-        setOrientation(VERTICAL);
         setWillNotDraw(false);
 
         titlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -139,6 +128,7 @@ public class ChartView extends LinearLayout {
     private class GraphView extends View {
 
         private final int DEFAULT_SIZE_SP_TEXT_VALUE = 16;
+        private final int TOUCH_SLOP_VALUE = 16;
         private final int DEFAULT_QTY_RULER_FLOORS = 5;
         private final int pointsInArrayOffset = 4;
         private final int DEFAULT_HISTORY_CONTROLLER_HORIZONTAL_LINE_WIDTH = 3;
@@ -161,6 +151,7 @@ public class ChartView extends LinearLayout {
         private int historyControllerColor = 0x4D94A2AB;
         @Px
         private int rulerValueTextSize = Util.spToPx(DEFAULT_SIZE_SP_TEXT_VALUE);
+        private final int touchSlop = Util.dpToPx(TOUCH_SLOP_VALUE);
 
         private int graphWidth;
         private float abscessValueTextMaxWidth;
@@ -242,6 +233,8 @@ public class ChartView extends LinearLayout {
 
             final int start = 0;
             final int end = abscissaValues.length - 1;
+            windowFromX = 0f;
+            windowToX = graphWidth;
 
             horizontalFromIndex = start;
             horizontalToIndex = end;
@@ -250,6 +243,7 @@ public class ChartView extends LinearLayout {
             invalidateHistoryYValues(start, end);
             invalidateXValues();
             invalidateYValues();
+            invalidateHistoryOverlayValues();
 
             initialized = true;
             invalidate();
@@ -264,13 +258,19 @@ public class ChartView extends LinearLayout {
             calculateLinePointsYCoordinates(historyCoordinateResolver, historyLinePointsXCoordinates, start, end, true);
         }
 
-        void setWindow(float windowFromPercent, float windowToPercent) {
+        private float windowFromX;
+        private float windowToX;
+
+        void setWindow(float fromX, float toX) {
             if (!initialized) {
                 return;
             }
 
-            horizontalFromIndex = (int) (windowFromPercent * abscissaValues.length);
-            horizontalToIndex = (int) (windowToPercent * abscissaValues.length);
+            windowFromX = fromX;
+            windowToX = toX;
+
+            horizontalFromIndex = (int) (windowFromX / graphWidth * abscissaValues.length);
+            horizontalToIndex = (int) (windowToX / graphWidth * abscissaValues.length);
 
             if (horizontalFromIndex < 0) {
                 horizontalFromIndex = 0;
@@ -285,6 +285,46 @@ public class ChartView extends LinearLayout {
             invalidateHistoryOverlayValues();
 
             invalidate();
+        }
+
+        void setWindowRight(float x) {
+            float rightX;
+
+            if (x < windowFromX + touchSlop) {
+                return;
+            } else {
+                rightX = x;
+            }
+
+            setWindow(windowFromX, rightX);
+        }
+
+        void setWindowLeft(float x) {
+            float leftX;
+
+            if (x > windowToX - touchSlop) {
+                return;
+            } else {
+                leftX = x;
+            }
+            setWindow(leftX, windowToX);
+        }
+
+        void moveWindow(float deltaX) {
+            float leftX = windowFromX + deltaX;
+            float rightX = windowToX + deltaX;
+
+            if (leftX < 0) {
+                leftX = 0;
+                rightX = windowToX;
+            } else if (rightX > graphWidth) {
+                rightX = graphWidth;
+                leftX = windowFromX;
+            }
+
+            if (leftX == windowFromX && rightX == windowToX) return;
+
+            setWindow(leftX, rightX);
         }
 
         void toggleChartLine(String chartId) {
@@ -382,6 +422,82 @@ public class ChartView extends LinearLayout {
 
             historyControllerPaint.setStrokeWidth(DEFAULT_HISTORY_CONTROLLER_VERTICAL_LINE_WIDTH);
             canvas.drawLines(historyControllerVerticalLinesPointsCoordinates, historyControllerPaint);
+        }
+
+        @SuppressLint("ClickableViewAccessibility")
+        @Override
+        public boolean onTouchEvent(MotionEvent event) {
+            if (event.getAction() == MotionEvent.ACTION_DOWN) {
+                if (touchingLeft || touchingRight || touchingCenter) {
+                    return true;
+                }
+
+                lastTouchX = event.getX();
+                float y = event.getY();
+
+                if (lastTouchX > (historyControllerHorizontalLinesPointsCoordinates[0] + touchSlop) &&
+                        lastTouchX < (historyControllerHorizontalLinesPointsCoordinates[2] - touchSlop) &&
+                        y > (historyControllerHorizontalLinesPointsCoordinates[1] - touchSlop) &&
+                        y < (historyControllerHorizontalLinesPointsCoordinates[7] + touchSlop)) {
+
+                    touchingRight = false;
+                    touchingLeft = false;
+                    touchingCenter = true;
+                    Log.d("Dbg.", "touching center");
+                    return true;
+                }
+
+                if (lastTouchX > (historyControllerHorizontalLinesPointsCoordinates[2] - touchSlop) &&
+                        lastTouchX < (historyControllerHorizontalLinesPointsCoordinates[2] + touchSlop) &&
+                        y > (historyControllerHorizontalLinesPointsCoordinates[1] - touchSlop) &&
+                        y < (historyControllerHorizontalLinesPointsCoordinates[7] + touchSlop)) {
+
+                    touchingRight = true;
+                    touchingLeft = false;
+                    touchingCenter = false;
+                    Log.d("Dbg.", "touching right");
+                    return true;
+                }
+
+                if (lastTouchX > (historyControllerHorizontalLinesPointsCoordinates[0] - touchSlop) &&
+                        lastTouchX < (historyControllerHorizontalLinesPointsCoordinates[0] + touchSlop) &&
+                        y > (historyControllerHorizontalLinesPointsCoordinates[1] - touchSlop) &&
+                        y < (historyControllerHorizontalLinesPointsCoordinates[7] + touchSlop)) {
+
+                    touchingRight = false;
+                    touchingLeft = true;
+                    touchingCenter = false;
+                    Log.d("Dbg.", "touching left");
+                    return true;
+                }
+            }
+
+            if (event.getAction() == MotionEvent.ACTION_UP) {
+                touchingRight = false;
+                touchingLeft = false;
+                touchingCenter = false;
+                Log.d("Dbg.", "touching nothing");
+                return true;
+            }
+
+            if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                final float x = event.getX();
+                final float y = event.getY();
+
+                if (touchingRight) {
+                    setWindowRight(x);
+                } else if (touchingLeft) {
+                    setWindowLeft(x);
+                } else if (touchingCenter) {
+                    moveWindow(x - lastTouchX);
+                }
+
+                lastTouchX = x;
+
+                return true;
+            }
+
+            return super.onTouchEvent(event);
         }
 
         private void invalidateXValues() {
