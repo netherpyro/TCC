@@ -9,55 +9,53 @@ final class CoordinateResolver {
     private float width;
     private float height;
     private float drawportTop;
+    private float drawportLeft;
     private float topBottomDrawPortPadding;
-    private float currentCostOfXValue;
-    private float currentCostOfYValue;
-    private float availableHeight;
+    private float fromX;
+    private float toX;
+    final private float xDistanceDefault;
 
-    CoordinateResolver(float fullWidth, float chartHeight, float drawportTop, float topBottomDrawPortPadding) {
+    CoordinateResolver(float fullWidth, float chartHeight, float drawportLeft, float drawportTop, float topBottomDrawPortPadding, int totalCount) {
         this.width = fullWidth;
         this.height = chartHeight;
+        this.drawportLeft = drawportLeft;
         this.drawportTop = drawportTop;
         this.topBottomDrawPortPadding = topBottomDrawPortPadding;
-        this.availableHeight = height - topBottomDrawPortPadding * 2;
+        xDistanceDefault = width / totalCount;
     }
 
-    void setAbscissaWindow(float fromValue, float toValue) {
-        window.left = fromValue;
-        window.right = toValue;
-        calculateCostInPxOfXValue();
+    float[] xValuesForScale() {
+        int numOfPoints = 0;
+        for (float i = 0; i < width; i += xDistanceDefault) {
+            if (i != 0 && i >= fromX && i <= toX) {
+                numOfPoints++;
+            }
+        }
+
+        float[] result = new float[numOfPoints]; // addition points: most start and most end values that are beyond visible rect
+        float scaledDistance = width / numOfPoints;
+        float currentDistance = 0;
+        for (int i = 0; i < numOfPoints; i++) {
+            result[i] = drawportLeft + currentDistance;
+            currentDistance += scaledDistance;
+        }
+
+        return result;
+    }
+
+    void setXWindow(float fromX, float toX) {
+        this.fromX = fromX;
+        this.toX = toX;
     }
 
     void setOrdinateWindow(float fromValue, float toValue) {
         window.bottom = fromValue;
         window.top = toValue;
-        calculateCostInPxOfYValue();
     }
 
     float yOfOrdinateValue(float value) {
         final float percent = (value - window.bottom) / window.height();
         return drawportTop + height - topBottomDrawPortPadding + percent * (2 * topBottomDrawPortPadding - height);
-    }
-
-    float xOfAbscissaValue(long value) {
-        final float percent = (value - window.left) / window.width();
-        return width * percent;
-    }
-
-    private void calculateCostInPxOfXValue() {
-        currentCostOfXValue = width / window.width();
-    }
-
-    private void calculateCostInPxOfYValue() {
-        currentCostOfYValue = availableHeight / window.height();
-    }
-
-    float rXTranslateInPx(float value) {
-        return currentCostOfXValue * value;
-    }
-
-    float rYTranslateInPx(float value) {
-        return currentCostOfYValue * value;
     }
 
     float maxOrdinateValue() {
@@ -69,23 +67,10 @@ final class CoordinateResolver {
     }
 
     final class ChartWindow {
-        float left = 0f;
         float top = 0f;
-        float right = 0f;
         float bottom = 0f;
 
         ChartWindow() {
-        }
-
-        ChartWindow(float left, float top, float right, float bottom) {
-            this.left = left;
-            this.top = top;
-            this.right = right;
-            this.bottom = bottom;
-        }
-
-        float width() {
-            return right - left;
         }
 
         float height() {

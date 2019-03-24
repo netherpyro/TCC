@@ -214,7 +214,7 @@ public class ChartView extends LinearLayout {
             rulerValuePaint.setColor(rulerValueTextColor);
             rulerValuePaint.setTextSize(rulerValueTextSize);
             abscessValueTextMaxWidth = rulerValuePaint.measureText("WWW 99");
-            abscessValueAppropriateSpacing = normalSpacing * 2;
+            abscessValueAppropriateSpacing = normalSpacing + smallSpacing;
 
             rulerGridPaint = new Paint();
             rulerGridPaint.setColor(rulerGridColor);
@@ -232,10 +232,6 @@ public class ChartView extends LinearLayout {
             historyControllerPaint.setColor(historyControllerColor);
         }
 
-        private int viewedPointsCount() {
-            return horizontalToIndex - horizontalFromIndex + 1;
-        }
-
         void setValues(@NonNull List<Long> xValues, @NonNull List<GraphLineModel> yValuesSet) {
             if (xValues.isEmpty()) {
                 return;
@@ -243,8 +239,8 @@ public class ChartView extends LinearLayout {
 
             graphWidth = getWidth();
 
-            mainCoordinateResolver = new CoordinateResolver(graphWidth, mainDrawportHeight, 0, rulerValueTextSize + normalSpacing);
-            historyCoordinateResolver = new CoordinateResolver(graphWidth, historyDrawportHeight, mainDrawportHeight + spaceHeight, xsmallSpacing);
+            mainCoordinateResolver = new CoordinateResolver(graphWidth, mainDrawportHeight, 0, 0, rulerValueTextSize + normalSpacing, xValues.size());
+            historyCoordinateResolver = new CoordinateResolver(graphWidth, historyDrawportHeight, 0, mainDrawportHeight + spaceHeight, xsmallSpacing, xValues.size());
 
             abscissaValues = new Long[xValues.size()];
             xValues.toArray(abscissaValues);
@@ -263,7 +259,7 @@ public class ChartView extends LinearLayout {
             horizontalFromIndex = start;
             horizontalToIndex = end;
 
-            invalidateHistoryXValues(start, end);
+            invalidateHistoryXValues();
             invalidateHistoryYValues(start, end);
             invalidateXValues();
             invalidateYValues();
@@ -273,8 +269,8 @@ public class ChartView extends LinearLayout {
             invalidate();
         }
 
-        private void invalidateHistoryXValues(int start, int end) {
-            calculateLinePointsXCoordinates(historyCoordinateResolver, start, end, true);
+        private void invalidateHistoryXValues() {
+            calculateLinePointsXCoordinates(historyCoordinateResolver, true);
         }
 
         private void invalidateHistoryYValues(int start, int end) {
@@ -316,6 +312,8 @@ public class ChartView extends LinearLayout {
 
             if (x < windowFromX + touchSlop) {
                 return;
+            } else if (x > graphWidth) {
+                rightX = graphWidth;
             } else {
                 rightX = x;
             }
@@ -328,6 +326,8 @@ public class ChartView extends LinearLayout {
 
             if (x > windowToX - touchSlop) {
                 return;
+            } else if (x < 0) {
+                leftX = 0;
             } else {
                 leftX = x;
             }
@@ -398,11 +398,11 @@ public class ChartView extends LinearLayout {
                     smallSpacing + rulerValueTextSize;
 
             for (int i = 0; i < rulerAbscissaLabels.size(); i++) {
-                if (i == rulerAbscissaLabels.size() - 1) {
+                /*if (i == rulerAbscissaLabels.size() - 1) {
                     rulerValuePaint.setTextAlign(Paint.Align.RIGHT);
                 } else {
                     rulerValuePaint.setTextAlign(Paint.Align.LEFT);
-                }
+                }*/
 
                 canvas.drawText(
                         rulerAbscissaLabels.get(i),
@@ -425,7 +425,7 @@ public class ChartView extends LinearLayout {
             }
 
             // draw ruler Y values
-            rulerValuePaint.setTextAlign(Paint.Align.LEFT);
+            //rulerValuePaint.setTextAlign(Paint.Align.LEFT);
 
             for (int i = 0; i < rulerOrdinateLabels.size(); i++) {
                 int arrayStartPointer = i * pointsInArrayOffset;
@@ -508,6 +508,10 @@ public class ChartView extends LinearLayout {
                 final float x = event.getX();
                 final float y = event.getY();
 
+                if (lastTouchX == x) {
+                    return true;
+                }
+
                 if (touchingRight) {
                     setWindowRight(x);
                 } else if (touchingLeft) {
@@ -525,38 +529,33 @@ public class ChartView extends LinearLayout {
         }
 
         private void invalidateXValues() {
-            final int viewedPointsCount = viewedPointsCount();
-
             // get x-coordinates of abscissa values to be displayed
-            calculateLinePointsXCoordinates(mainCoordinateResolver, horizontalFromIndex, horizontalToIndex, false);
+            calculateLinePointsXCoordinates(mainCoordinateResolver, false);
 
             // get abscissa label x-positions and quantity
-            int labelsCount = (int) (graphWidth / (abscessValueAppropriateSpacing + abscessValueTextMaxWidth));
-            final float step = (graphWidth - abscessValueAppropriateSpacing) / labelsCount;
+            int labelsCount = (int) ((graphWidth - abscessValueTextMaxWidth) / (abscessValueAppropriateSpacing + abscessValueTextMaxWidth));
+            final float step = (graphWidth - abscessValueTextMaxWidth) / labelsCount;
 
-            labelsCount++; // add the last label
+            labelsCount++; // add the first label
 
             rulerAbscissaLabelXCoordinates = new float[labelsCount];
             for (int k = 0; k < labelsCount; k++) {
-
-                if (k == labelsCount - 1) {
-                    rulerAbscissaLabelXCoordinates[k] = graphWidth; // most end label x value
-                } else {
-                    rulerAbscissaLabelXCoordinates[k] = k * step;
-                }
+                rulerAbscissaLabelXCoordinates[k] = k * step;
             }
 
             // get abscissa labels text to be displayed
             final int[] indexes = new int[labelsCount];
-            final int indexStep = viewedPointsCount / (labelsCount - 1); // without the last label //todo fix divide by zero
+            final int indexStep = mainLinePointsXCoordinates.length / (labelsCount - 1); // without the first label //todo fix divide by zero
 
             int currentIndex = horizontalFromIndex;
-            for (int j = 0; j < labelsCount - 1; j++) { // without the last label
+            for (int j = 0; j < labelsCount; j++) {
                 indexes[j] = currentIndex;
                 currentIndex += indexStep;
-            }
 
-            indexes[indexes.length - 1] = viewedPointsCount - 1; // manually put last index as last item in array
+                if (currentIndex >= abscissaValues.length) {
+                    currentIndex = abscissaValues.length - 1;
+                }
+            }
 
             List<Long> rulerAbscissaValues = new ArrayList<>(labelsCount);
             for (int index : indexes) {
@@ -590,7 +589,9 @@ public class ChartView extends LinearLayout {
 
                 int arrayStartPointer = i * pointsInArrayOffset;
                 rulerOrdinateGridLinesPoints[arrayStartPointer] = 0f;
-                rulerOrdinateGridLinesPoints[arrayStartPointer + 1] = rulerOrdinateGridLinesPoints[arrayStartPointer + 3] = mainCoordinateResolver.yOfOrdinateValue(valueToAdd);
+                rulerOrdinateGridLinesPoints[arrayStartPointer + 1] =
+                        rulerOrdinateGridLinesPoints[arrayStartPointer + 3] =
+                                mainCoordinateResolver.yOfOrdinateValue(valueToAdd);
                 rulerOrdinateGridLinesPoints[arrayStartPointer + 2] = (float) graphWidth;
 
                 i++;
@@ -624,14 +625,10 @@ public class ChartView extends LinearLayout {
             resolver.setOrdinateWindow(minValue, maxValue);
         }
 
-        private void calculateLinePointsXCoordinates(CoordinateResolver resolver, int fromIndex, int toIndex, boolean forHistory) {
-            final int viewedPointsCount = toIndex - fromIndex + 1;
-            resolver.setAbscissaWindow(abscissaValues[fromIndex], abscissaValues[toIndex]);
+        private void calculateLinePointsXCoordinates(CoordinateResolver resolver, boolean forHistory) {
+            resolver.setXWindow(windowFromX, windowToX);
 
-            float[] pointsXCoordinates = new float[viewedPointsCount];
-            for (int i = 0; i < viewedPointsCount; i++) {
-                pointsXCoordinates[i] = resolver.xOfAbscissaValue(abscissaValues[i + fromIndex]);
-            }
+            float[] pointsXCoordinates = resolver.xValuesForScale();
 
             if (forHistory) {
                 historyLinePointsXCoordinates = pointsXCoordinates;
@@ -643,12 +640,12 @@ public class ChartView extends LinearLayout {
         private void calculateLinePointsYCoordinates(CoordinateResolver resolver, float[] pointsXCoordinates, int fromIndex, int toIndex, boolean forHistory) {
             final int viewedPointsCount = toIndex - fromIndex + 1;
 
-            for (ViewedLineModel viewedLineModel : viewedLinesData) {
+            for (final ViewedLineModel viewedLineModel : viewedLinesData) {
                 if (!viewedLineModel.enabled) continue;
 
                 final float[] linePointsParts = new float[viewedPointsCount * pointsInArrayOffset];
 
-                for (GraphLineModel fullLine : ordinateValuesSet) {
+                for (final GraphLineModel fullLine : ordinateValuesSet) {
                     if (viewedLineModel.chartId.equals(fullLine.id)) {
 
                         for (int i = 0; i < pointsXCoordinates.length - 1; i++) {
@@ -675,30 +672,30 @@ public class ChartView extends LinearLayout {
 
             leftOverlayRect.left = 0;
             leftOverlayRect.top = historyTop;
-            leftOverlayRect.right = historyLinePointsXCoordinates[horizontalFromIndex];
+            leftOverlayRect.right = windowFromX;
             leftOverlayRect.bottom = historyBottom;
 
-            rightOverlayRect.left = historyLinePointsXCoordinates[horizontalToIndex];
+            rightOverlayRect.left = windowToX;
             rightOverlayRect.top = historyTop;
             rightOverlayRect.right = graphWidth;
             rightOverlayRect.bottom = historyBottom;
 
-            historyControllerHorizontalLinesPointsCoordinates[0] = historyLinePointsXCoordinates[horizontalFromIndex];
+            historyControllerHorizontalLinesPointsCoordinates[0] = windowFromX;
             historyControllerHorizontalLinesPointsCoordinates[1] = historyTop + DEFAULT_HISTORY_CONTROLLER_HORIZONTAL_LINE_WIDTH / 2f;
-            historyControllerHorizontalLinesPointsCoordinates[2] = historyLinePointsXCoordinates[horizontalToIndex];
+            historyControllerHorizontalLinesPointsCoordinates[2] = windowToX;
             historyControllerHorizontalLinesPointsCoordinates[3] = historyTop + DEFAULT_HISTORY_CONTROLLER_HORIZONTAL_LINE_WIDTH / 2f;
-            historyControllerHorizontalLinesPointsCoordinates[4] = historyLinePointsXCoordinates[horizontalFromIndex];
+            historyControllerHorizontalLinesPointsCoordinates[4] = windowFromX;
             historyControllerHorizontalLinesPointsCoordinates[5] = historyBottom - DEFAULT_HISTORY_CONTROLLER_HORIZONTAL_LINE_WIDTH / 2f;
-            historyControllerHorizontalLinesPointsCoordinates[6] = historyLinePointsXCoordinates[horizontalToIndex];
+            historyControllerHorizontalLinesPointsCoordinates[6] = windowToX;
             historyControllerHorizontalLinesPointsCoordinates[7] = historyBottom - DEFAULT_HISTORY_CONTROLLER_HORIZONTAL_LINE_WIDTH / 2f;
 
-            historyControllerVerticalLinesPointsCoordinates[0] = historyLinePointsXCoordinates[horizontalFromIndex] + DEFAULT_HISTORY_CONTROLLER_VERTICAL_LINE_WIDTH / 2f;
+            historyControllerVerticalLinesPointsCoordinates[0] = windowFromX + DEFAULT_HISTORY_CONTROLLER_VERTICAL_LINE_WIDTH / 2f;
             historyControllerVerticalLinesPointsCoordinates[1] = historyTop + DEFAULT_HISTORY_CONTROLLER_HORIZONTAL_LINE_WIDTH;
-            historyControllerVerticalLinesPointsCoordinates[2] = historyLinePointsXCoordinates[horizontalFromIndex] + DEFAULT_HISTORY_CONTROLLER_VERTICAL_LINE_WIDTH / 2f;
+            historyControllerVerticalLinesPointsCoordinates[2] = windowFromX + DEFAULT_HISTORY_CONTROLLER_VERTICAL_LINE_WIDTH / 2f;
             historyControllerVerticalLinesPointsCoordinates[3] = historyBottom - DEFAULT_HISTORY_CONTROLLER_HORIZONTAL_LINE_WIDTH;
-            historyControllerVerticalLinesPointsCoordinates[4] = historyLinePointsXCoordinates[horizontalToIndex] - DEFAULT_HISTORY_CONTROLLER_VERTICAL_LINE_WIDTH / 2f;
+            historyControllerVerticalLinesPointsCoordinates[4] = windowToX - DEFAULT_HISTORY_CONTROLLER_VERTICAL_LINE_WIDTH / 2f;
             historyControllerVerticalLinesPointsCoordinates[5] = historyTop + DEFAULT_HISTORY_CONTROLLER_HORIZONTAL_LINE_WIDTH;
-            historyControllerVerticalLinesPointsCoordinates[6] = historyLinePointsXCoordinates[horizontalToIndex] - DEFAULT_HISTORY_CONTROLLER_VERTICAL_LINE_WIDTH / 2f;
+            historyControllerVerticalLinesPointsCoordinates[6] = windowToX - DEFAULT_HISTORY_CONTROLLER_VERTICAL_LINE_WIDTH / 2f;
             historyControllerVerticalLinesPointsCoordinates[7] = historyBottom - DEFAULT_HISTORY_CONTROLLER_HORIZONTAL_LINE_WIDTH;
         }
     }
@@ -883,7 +880,6 @@ public class ChartView extends LinearLayout {
             paint.setStrokeWidth(4);
             canvas.drawRoundRect(cbRect, cbRadius, cbRadius, paint);
 
-            Log.d("Dbg.", "draw checkLinesAnim: " + checkLinesAnim[0] + ", " + checkLinesAnim[1] + ", " + checkLinesAnim[2] + ", " + checkLinesAnim[3] + ", " + checkLinesAnim[4] + ", " + checkLinesAnim[5] + ", " + checkLinesAnim[6] + ", " + checkLinesAnim[7]);
             canvas.drawLines(checkLinesAnim, checkPaint);
 
             paint.setColor(backgroundColor);
