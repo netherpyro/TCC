@@ -1,7 +1,12 @@
 package com.netherpyro.tcc;
 
 import android.os.AsyncTask;
+import android.os.Build;
 import android.os.Bundle;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.widget.LinearLayout;
+import android.widget.ScrollView;
 
 import com.netherpyro.tcc.chart.ChartData;
 import com.netherpyro.tcc.chart.ChartView;
@@ -48,9 +53,39 @@ public class MainActivity extends AppCompatActivity {
         protected void onPostExecute(List<ChartData> chartData) {
             super.onPostExecute(chartData);
 
-            ChartView chartView = findViewById(R.id.chartView);
-            chartView.setChartName("Followers");
-            chartView.setData(chartData.get(0));
+            final LinearLayout parent = findViewById(R.id.parent);
+            ((ScrollView) findViewById(R.id.scrollView)).requestDisallowInterceptTouchEvent(true);
+
+            for (final ChartData data : chartData) {
+                LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                );
+
+                final ChartView chartView = new ChartView(MainActivity.this);
+                chartView.setLayoutParams(params);
+                parent.addView(chartView);
+
+                if (Build.VERSION.SDK_INT > Build.VERSION_CODES.JELLY_BEAN) {
+                    parent.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                        @Override
+                        public void onGlobalLayout() {
+                            parent.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                            chartView.setChartName("Followers");
+                            chartView.setData(data);
+                        }
+                    });
+                } else {
+                    parent.getViewTreeObserver().addOnGlobalLayoutListener(new ViewTreeObserver.OnGlobalLayoutListener() {
+                        @Override
+                        public void onGlobalLayout() {
+                            parent.getViewTreeObserver().removeGlobalOnLayoutListener(this);
+                            chartView.setChartName("Followers");
+                            chartView.setData(data);
+                        }
+                    });
+                }
+
+            }
         }
     }
 }
