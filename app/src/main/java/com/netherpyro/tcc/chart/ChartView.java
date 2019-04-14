@@ -10,6 +10,7 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
@@ -464,6 +465,7 @@ public class ChartView extends LinearLayout {
                         y > (historyControllerHorizontalLinesPointsCoordinates[1] - touchSlop) &&
                         y < (historyControllerHorizontalLinesPointsCoordinates[7] + touchSlop)) {
 
+                    getParent().requestDisallowInterceptTouchEvent(true);
                     touchingRight = false;
                     touchingLeft = false;
                     touchingCenter = true;
@@ -476,6 +478,7 @@ public class ChartView extends LinearLayout {
                         y > (historyControllerHorizontalLinesPointsCoordinates[1] - touchSlop) &&
                         y < (historyControllerHorizontalLinesPointsCoordinates[7] + touchSlop)) {
 
+                    getParent().requestDisallowInterceptTouchEvent(true);
                     touchingRight = true;
                     touchingLeft = false;
                     touchingCenter = false;
@@ -488,6 +491,7 @@ public class ChartView extends LinearLayout {
                         y > (historyControllerHorizontalLinesPointsCoordinates[1] - touchSlop) &&
                         y < (historyControllerHorizontalLinesPointsCoordinates[7] + touchSlop)) {
 
+                    getParent().requestDisallowInterceptTouchEvent(true);
                     touchingRight = false;
                     touchingLeft = true;
                     touchingCenter = false;
@@ -497,6 +501,7 @@ public class ChartView extends LinearLayout {
             }
 
             if (event.getAction() == MotionEvent.ACTION_UP) {
+                getParent().requestDisallowInterceptTouchEvent(false);
                 touchingRight = false;
                 touchingLeft = false;
                 touchingCenter = false;
@@ -525,7 +530,13 @@ public class ChartView extends LinearLayout {
                 return true;
             }
 
-            return super.onTouchEvent(event);
+            getParent().requestDisallowInterceptTouchEvent(false);
+
+            touchingRight = false;
+            touchingLeft = false;
+            touchingCenter = false;
+
+            return true;
         }
 
         private void invalidateXValues() {
@@ -727,7 +738,6 @@ public class ChartView extends LinearLayout {
         private String text = "New checkbox";
         private boolean drawDivider = true;
         private boolean checked = true;
-        private boolean wasPressedDown = false;
 
         private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint checkPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -739,6 +749,20 @@ public class ChartView extends LinearLayout {
 
         private float[] checkLines = new float[8];
         private float[] checkLinesAnim = new float[8];
+
+        private GestureDetector.SimpleOnGestureListener gestureListener = new GestureDetector.SimpleOnGestureListener() {
+            @Override
+            public boolean onSingleTapUp(MotionEvent e) {
+                toggleChecked();
+                return true;
+            }
+
+            @Override
+            public boolean onDown(MotionEvent e) {
+                return true;
+            }
+        };
+        private GestureDetector detector = new GestureDetector(getContext(), gestureListener);
 
         public Checkbox(
                 Context context,
@@ -837,16 +861,11 @@ public class ChartView extends LinearLayout {
         @SuppressLint("ClickableViewAccessibility")
         @Override
         public boolean onTouchEvent(MotionEvent event) {
-            if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                wasPressedDown = true;
+            if (detector.onTouchEvent(event)) {
                 return true;
-            } else if (event.getAction() == MotionEvent.ACTION_UP && wasPressedDown) {
-                wasPressedDown = false;
-                toggleChecked();
-                return true;
+            } else {
+                return super.onTouchEvent(event);
             }
-
-            return super.onTouchEvent(event);
         }
 
         @Override

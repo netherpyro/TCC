@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
 
 import com.netherpyro.tcc.chart.ChartData;
 import com.netherpyro.tcc.chart.ChartView;
@@ -54,7 +53,6 @@ public class MainActivity extends AppCompatActivity {
             super.onPostExecute(chartData);
 
             final LinearLayout parent = findViewById(R.id.parent);
-            ((ScrollView) findViewById(R.id.scrollView)).requestDisallowInterceptTouchEvent(true);
 
             for (final ChartData data : chartData) {
                 LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
@@ -84,7 +82,6 @@ public class MainActivity extends AppCompatActivity {
                         }
                     });
                 }
-
             }
         }
     }
