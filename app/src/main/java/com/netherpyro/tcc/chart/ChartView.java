@@ -1,5 +1,6 @@
 package com.netherpyro.tcc.chart;
 
+import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.TypedArray;
@@ -25,6 +26,7 @@ import androidx.annotation.Nullable;
 import androidx.annotation.Px;
 import androidx.collection.ArraySet;
 import androidx.core.content.ContextCompat;
+import androidx.core.util.Pair;
 
 /**
  * @author mmikhailov on 16/03/2019.
@@ -154,6 +156,7 @@ public class ChartView extends LinearLayout {
         private final int pointsInArrayOffset = 4;
         private final int DEFAULT_HISTORY_CONTROLLER_HORIZONTAL_LINE_WIDTH = 3;
         private final int DEFAULT_HISTORY_CONTROLLER_VERTICAL_LINE_WIDTH = DEFAULT_HISTORY_CONTROLLER_HORIZONTAL_LINE_WIDTH * 4;
+        private final long ANIMATION_DURATION = 150;
 
         private Long[] abscissaValues;
         private final Set<GraphLineModel> ordinateValuesSet = new ArraySet<>();
@@ -199,10 +202,24 @@ public class ChartView extends LinearLayout {
         private int horizontalFromIndex;
         private int horizontalToIndex;
 
+        private float maxOrdinateValue;
+        private float maxOrdinateHistoryValue;
+        private float minOrdinateValue;
+        private float minOrdinateHistoryValue;
+
+        private ValueAnimator yAnimator = null;
+        private float minHistoryValue;
+        private float maxHistoryValue;
+        private int historyFromIndex;
+        private int historyToIndex;
+
         final private RectF leftOverlayRect = new RectF();
         final private RectF rightOverlayRect = new RectF();
         final private float[] historyControllerHorizontalLinesPointsCoordinates = new float[pointsInArrayOffset * 2];
         final private float[] historyControllerVerticalLinesPointsCoordinates = new float[pointsInArrayOffset * 2];
+
+        private float windowFromX;
+        private float windowToX;
 
         GraphView(Context context) {
             super(context);
@@ -248,8 +265,8 @@ public class ChartView extends LinearLayout {
                 viewedLinesData.add(new ViewedLineModel(lineModel.id, lineModel.color));
             }
 
-            final int start = 0;
-            final int end = abscissaValues.length - 1;
+            final int start = historyFromIndex = 0;
+            final int end = historyToIndex = abscissaValues.length - 1;
             windowFromX = 0f;
             windowToX = graphWidth;
 
@@ -257,26 +274,16 @@ public class ChartView extends LinearLayout {
             horizontalToIndex = end;
 
             invalidateHistoryXValues();
-            invalidateHistoryYValues(start, end);
             invalidateXValues();
-            invalidateYValues();
+            invalidateYValues(true);
             invalidateHistoryOverlayValues();
 
             initialized = true;
-            invalidate();
         }
 
         private void invalidateHistoryXValues() {
             calculateLinePointsXCoordinates(historyCoordinateResolver, true);
         }
-
-        private void invalidateHistoryYValues(int start, int end) {
-            prepareCoordinateResolverOrdinateWindow(historyCoordinateResolver, start, end);
-            calculateLinePointsYCoordinates(historyCoordinateResolver, historyLinePointsXCoordinates, start, end, true);
-        }
-
-        private float windowFromX;
-        private float windowToX;
 
         void setWindow(float fromX, float toX) {
             if (!initialized) {
@@ -298,10 +305,8 @@ public class ChartView extends LinearLayout {
             }
 
             invalidateXValues();
-            invalidateYValues();
+            invalidateYValues(false);
             invalidateHistoryOverlayValues();
-
-            invalidate();
         }
 
         void setWindowRight(float x) {
@@ -360,9 +365,7 @@ public class ChartView extends LinearLayout {
                 }
             }
 
-            invalidateHistoryYValues(0, abscissaValues.length - 1);
-            invalidateYValues();
-            invalidate();
+            invalidateYValues(true);
         }
 
         @Override
@@ -564,7 +567,7 @@ public class ChartView extends LinearLayout {
                 }
             }
 
-            List<Long> rulerAbscissaValues = new ArrayList<>(labelsCount);
+            final List<Long> rulerAbscissaValues = new ArrayList<>(labelsCount);
             for (int index : indexes) {
                 rulerAbscissaValues.add(abscissaValues[index]);
             }
@@ -572,10 +575,69 @@ public class ChartView extends LinearLayout {
             rulerAbscissaLabels = Util.convertTimestampsToLabels(rulerAbscissaValues);
         }
 
-        private void invalidateYValues() {
-            // calculate min and max ordinate value
-            prepareCoordinateResolverOrdinateWindow(mainCoordinateResolver, horizontalFromIndex, horizontalToIndex);
+        private void invalidateYValues(final boolean invalidateHistory) {
+            if (invalidateHistory) {
+                final Pair<Float, Float> minMaxPairHistory = calculateMinMaxValues(historyFromIndex, historyToIndex);
+                minHistoryValue = minMaxPairHistory.first;
+                maxHistoryValue = minMaxPairHistory.second;
+            }
 
+            // calculate min and max ordinate value
+            final Pair<Float, Float> minMaxPairMain = calculateMinMaxValues(horizontalFromIndex, horizontalToIndex);
+
+            yAnimator =  ValueAnimator.ofFloat(0f, 1f);
+            yAnimator.setDuration(ANIMATION_DURATION);
+            yAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                @Override
+                public void onAnimationUpdate(ValueAnimator animation) {
+                    float val = (float) animation.getAnimatedValue();
+
+                    if (invalidateHistory) {
+                        maxOrdinateHistoryValue = maxOrdinateHistoryValue * (1 - val) + val * maxHistoryValue;
+                        minOrdinateHistoryValue = minOrdinateHistoryValue * (1 - val) + val * minHistoryValue;
+                        historyCoordinateResolver.setOrdinateWindow(minOrdinateHistoryValue, maxOrdinateHistoryValue);
+                        calculateLinePointsYCoordinates(historyCoordinateResolver, historyLinePointsXCoordinates, historyFromIndex, historyToIndex, true);
+                    }
+
+                    maxOrdinateValue = maxOrdinateValue * (1 - val) + val * minMaxPairMain.second;
+                    minOrdinateValue = minOrdinateValue * (1 - val) + val * minMaxPairMain.first;
+                    mainCoordinateResolver.setOrdinateWindow(minOrdinateValue, maxOrdinateValue);
+                    proceedInvalidateYValues();
+                    invalidate();
+                }
+
+            });
+            yAnimator.start();
+        }
+
+        private Pair<Float, Float> calculateMinMaxValues(int fromIndex, int toIndex) {
+            float maxValue = Float.MIN_VALUE;
+            float minValue = Float.MAX_VALUE;
+
+            for (ViewedLineModel viewedLineModel : viewedLinesData) {
+                if (!viewedLineModel.enabled) continue;
+
+                for (GraphLineModel fullLine : ordinateValuesSet) {
+                    if (viewedLineModel.chartId.equals(fullLine.id)) {
+                        for (int i = fromIndex; i <= toIndex; i++) {
+                            float currentValue = fullLine.values[i];
+
+                            if (currentValue > maxValue) {
+                                maxValue = currentValue;
+                            }
+
+                            if (currentValue < minValue) {
+                                minValue = currentValue;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return new Pair<>(minValue, maxValue);
+        }
+
+        private void proceedInvalidateYValues() {
             // calculate lines coordinates
             calculateLinePointsYCoordinates(mainCoordinateResolver, mainLinePointsXCoordinates, horizontalFromIndex, horizontalToIndex, false);
 
@@ -603,33 +665,6 @@ public class ChartView extends LinearLayout {
 
                 i++;
             }
-        }
-
-        private void prepareCoordinateResolverOrdinateWindow(CoordinateResolver resolver, int fromIndex, int toIndex) {
-            float maxValue = Float.MIN_VALUE;
-            float minValue = Float.MAX_VALUE;
-
-            for (ViewedLineModel viewedLineModel : viewedLinesData) {
-                if (!viewedLineModel.enabled) continue;
-
-                for (GraphLineModel fullLine : ordinateValuesSet) {
-                    if (viewedLineModel.chartId.equals(fullLine.id)) {
-                        for (int i = fromIndex; i <= toIndex; i++) {
-                            float currentValue = fullLine.values[i];
-
-                            if (currentValue > maxValue) {
-                                maxValue = currentValue;
-                            }
-
-                            if (currentValue < minValue) {
-                                minValue = currentValue;
-                            }
-                        }
-                    }
-                }
-            }
-
-            resolver.setOrdinateWindow(minValue, maxValue);
         }
 
         private void calculateLinePointsXCoordinates(CoordinateResolver resolver, boolean forHistory) {
