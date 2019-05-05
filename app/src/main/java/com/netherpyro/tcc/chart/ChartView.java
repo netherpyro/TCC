@@ -398,12 +398,6 @@ public class ChartView extends LinearLayout {
                     smallSpacing + rulerValueTextSize;
 
             for (int i = 0; i < rulerAbscissaLabels.size(); i++) {
-                /*if (i == rulerAbscissaLabels.size() - 1) {
-                    rulerValuePaint.setTextAlign(Paint.Align.RIGHT);
-                } else {
-                    rulerValuePaint.setTextAlign(Paint.Align.LEFT);
-                }*/
-
                 canvas.drawText(
                         rulerAbscissaLabels.get(i),
                         rulerAbscissaLabelXCoordinates[i],
@@ -425,8 +419,6 @@ public class ChartView extends LinearLayout {
             }
 
             // draw ruler Y values
-            //rulerValuePaint.setTextAlign(Paint.Align.LEFT);
-
             for (int i = 0; i < rulerOrdinateLabels.size(); i++) {
                 int arrayStartPointer = i * pointsInArrayOffset;
                 canvas.drawText(
@@ -585,7 +577,7 @@ public class ChartView extends LinearLayout {
             // calculate min and max ordinate value
             final Pair<Float, Float> minMaxPairMain = calculateMinMaxValues(horizontalFromIndex, horizontalToIndex);
 
-            yAnimator =  ValueAnimator.ofFloat(0f, 1f);
+            yAnimator = ValueAnimator.ofFloat(0f, 1f);
             yAnimator.setDuration(ANIMATION_DURATION);
             yAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
                 @Override
@@ -654,7 +646,7 @@ public class ChartView extends LinearLayout {
             int i = 0;
             while (i <= rulerFloors) { // include base floor
                 float valueToAdd = (minValue + step * i);
-                rulerOrdinateLabels.add(String.valueOf(valueToAdd));
+                rulerOrdinateLabels.add(String.valueOf((int) valueToAdd));
 
                 int arrayStartPointer = i * pointsInArrayOffset;
                 rulerOrdinateGridLinesPoints[arrayStartPointer] = 0f;
